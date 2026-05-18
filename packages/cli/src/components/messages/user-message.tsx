@@ -1,10 +1,10 @@
-import { Mode } from "@nightcode/database/enums";
+import { Mode, type ModeType } from "@nightcode/shared";
 import { EmptyBorder } from "../border";
 import { useTheme } from "../../providers/theme";
 
 type Props = {
   message: string;
-  mode: Mode;
+  mode: ModeType;
 };
 
 export function UserMessage({ message, mode }: Props) {
