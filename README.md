@@ -19,6 +19,7 @@
   <a href="https://cwa.run/neon?utm_source=github&utm_medium=readme&utm_campaign=nightcode&utm_content=badge_neon"><img src="https://img.shields.io/badge/Neon-00E599?style=for-the-badge&logo=neon&logoColor=black" alt="Neon" /></a>&nbsp;
   <a href="https://cwa.run/clerk?utm_source=github&utm_medium=readme&utm_campaign=nightcode&utm_content=badge_clerk"><img src="https://img.shields.io/badge/Clerk-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" /></a>&nbsp;
   <a href="https://cwa.run/polar?utm_source=github&utm_medium=readme&utm_campaign=nightcode&utm_content=badge_polar"><img src="https://img.shields.io/badge/Polar-000000?style=for-the-badge&logo=polar&logoColor=white" alt="Polar" /></a>&nbsp;
+  <a href="https://cwa.run/coderabbit?utm_source=github&utm_medium=readme&utm_campaign=nightcode&utm_content=badge_coderabbit"><img src="https://img.shields.io/badge/CodeRabbit-FF6C37?style=for-the-badge&logo=rabbitmq&logoColor=white" alt="CodeRabbit" /></a>&nbsp;
   <a href="https://cwa.run/sentry?utm_source=github&utm_medium=readme&utm_campaign=nightcode&utm_content=badge_sentry"><img src="https://img.shields.io/badge/Sentry-362D59?style=for-the-badge&logo=sentry&logoColor=white" alt="Sentry" /></a>&nbsp;
   <a href="https://cwa.run/railway?utm_source=github&utm_medium=readme&utm_campaign=nightcode&utm_content=badge_railway"><img src="https://img.shields.io/badge/Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" alt="Railway" /></a>
 </p>
