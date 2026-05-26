@@ -16,3 +16,12 @@ export {
   type ToolContracts,
   type ModeType,
 } from "./schemas";
+
+export {
+  mcpToolDefSchema,
+  mcpServerStatusSchema,
+  type McpToolDef,
+  type McpServerStatus,
+  type McpServerConfig,
+  type NightcodeConfig,
+} from "./mcp-schemas";

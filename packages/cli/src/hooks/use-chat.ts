@@ -11,6 +11,8 @@ import { type ModeType, type SupportedChatModelId, type ToolContracts } from "@n
 import { apiClient } from "../lib/api-client";
 import { getAuth } from "../lib/auth";
 import { executeLocalTool } from "../lib/local-tools";
+import { getMcpClient } from "../lib/mcp/client";
+import { isMcpTool } from "../lib/mcp/bridge";
 
 export type ChatMessageMetadata = {
   mode?: ModeType;
@@ -29,6 +31,8 @@ type ChatTools = {
 export type Message = UIMessage<ChatMessageMetadata, never, ChatTools>;
 
 export function useChat(sessionId: string, initialMessages: Message[]) {
+  const mcpClient = useMemo(() => getMcpClient(), []);
+
   const transport = useMemo(() => {
     return new DefaultChatTransport<Message>({
       api: apiClient.chat.$url().toString(),
@@ -55,11 +59,12 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
             messages: requestMessages,
             mode: message.metadata?.mode ?? metadata?.mode,
             model: message.metadata?.model ?? metadata?.model,
+            mcpTools: mcpClient.hasTools() ? mcpClient.getToolDefs() : undefined,
           },
         }
       }
     });
-  }, [sessionId]);
+  }, [sessionId, mcpClient]);
 
   const chat = useAiChat<Message>({
     id: sessionId,
@@ -68,22 +73,42 @@ export function useChat(sessionId: string, initialMessages: Message[]) {
     onToolCall({ toolCall }) {
       const mode = chat.messages.at(-1)?.metadata?.mode ?? "BUILD";
 
-      void executeLocalTool(toolCall.toolName, toolCall.input, mode)
-        .then((output) =>
-          chat.addToolOutput({
-            tool: toolCall.toolName as keyof ChatTools,
-            toolCallId: toolCall.toolCallId,
-            output,
-          }),
-        )
-        .catch((error) =>
-          chat.addToolOutput({
-            tool: toolCall.toolName as keyof ChatTools,
-            toolCallId: toolCall.toolCallId,
-            state: "output-error",
-            errorText: error instanceof Error ? error.message : String(error),
-          }),
-        );
+      const mcpMatch = mcpClient.matchTool(toolCall.toolName);
+      if (mcpMatch) {
+        void mcpClient.executeTool(mcpMatch.serverName, mcpMatch.toolName, toolCall.input as Record<string, unknown>)
+          .then((output) =>
+            chat.addToolOutput({
+              tool: toolCall.toolName as keyof ChatTools,
+              toolCallId: toolCall.toolCallId,
+              output,
+            }),
+          )
+          .catch((error) =>
+            chat.addToolOutput({
+              tool: toolCall.toolName as keyof ChatTools,
+              toolCallId: toolCall.toolCallId,
+              state: "output-error",
+              errorText: error instanceof Error ? error.message : String(error),
+            }),
+          );
+      } else {
+        void executeLocalTool(toolCall.toolName, toolCall.input, mode)
+          .then((output) =>
+            chat.addToolOutput({
+              tool: toolCall.toolName as keyof ChatTools,
+              toolCallId: toolCall.toolCallId,
+              output,
+            }),
+          )
+          .catch((error) =>
+            chat.addToolOutput({
+              tool: toolCall.toolName as keyof ChatTools,
+              toolCallId: toolCall.toolCallId,
+              state: "output-error",
+              errorText: error instanceof Error ? error.message : String(error),
+            }),
+          );
+      }
     },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });

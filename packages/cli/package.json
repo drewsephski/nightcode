@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "bun run --watch src/index.tsx",
-    "build": "bun build src/index.tsx --outdir dist --target bun"
+    "build": "bun build src/index.tsx --outdir dist --target bun --external playwright --external @modelcontextprotocol/sdk"
   },
   "devDependencies": {
     "@nightcode/server": "workspace:*",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.186",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nightcode/shared": "workspace:*",
     "@opentui/core": "^0.1.97",
     "@opentui/react": "^0.1.97",
@@ -28,6 +29,7 @@
     "hono": "^4.12.12",
     "open": "^11.0.0",
     "opentui-spinner": "^0.0.6",
+    "playwright": "^1.52.0",
     "pretty-ms": "^9.3.0",
     "react": "^19.2.4",
     "react-router": "^7.14.0",

@@ -4,6 +4,7 @@ import {
   ModelsDialogContent,
   SessionsDialogContent,
   ThemeDialogContent,
+  McpDialogContent,
 } from "../dialogs";
 import type { Command } from "./types";
 
@@ -67,6 +68,17 @@ export const COMMANDS: Command[] = [
       ctx.dialog.open({
         title: "Select Theme",
         children: <ThemeDialogContent />,
+      })
+    },
+  },
+  {
+    name: "mcp",
+    description: "Configure and manage MCP servers",
+    value: "/mcp",
+    action: (ctx) => {
+      ctx.dialog.open({
+        title: "MCP Servers",
+        children: <McpDialogContent />,
       })
     },
   },

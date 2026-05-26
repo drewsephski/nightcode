@@ -5,6 +5,11 @@ import { RootLayout } from "./layouts/root-layout";
 import { Home } from "./screens/home";
 import { NewSession } from "./screens/new-session";
 import { Session } from "./screens/session";
+import { getMcpClient } from "./lib/mcp/client";
+
+getMcpClient().init().catch((error) => {
+  console.error("Failed to initialize MCP client:", error);
+});
 
 const router = createMemoryRouter([
   {

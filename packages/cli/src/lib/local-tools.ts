@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "path";
 import { toolInputSchemas, Mode, type ModeType } from "@nightcode/shared";
+import { executeBrowse } from "./browser/commands";
 
 const MAX_FILE_SIZE = 10_000;
 const MAX_RESULTS = 200;
@@ -27,7 +28,7 @@ function truncate(value: string, limit: number) {
 }
 
 export async function executeLocalTool(toolName: string, input: unknown, mode: ModeType) {
-  if (mode === Mode.PLAN && !["readFile", "listDirectory", "glob", "grep"].includes(toolName)) {
+  if (mode === Mode.PLAN && !["readFile", "listDirectory", "glob", "grep", "webSearch", "browse", "gitStatus", "gitDiff", "gitLog"].includes(toolName)) {
     throw new Error(`Tool ${toolName} is not available in PLAN mode`);
   }
 
@@ -163,6 +164,154 @@ export async function executeLocalTool(toolName: string, input: unknown, mode: M
         stderr: truncate(stderr, MAX_OUTPUT),
         exitCode,
       };
+    }
+    case "webSearch": {
+      const { query, numResults } = toolInputSchemas.webSearch.parse(input);
+      const apiKey = process.env.EXA_API_KEY;
+      if (!apiKey) {
+        return { error: "EXA_API_KEY environment variable is not set" };
+      }
+      const res = await fetch("https://api.exa.ai/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          query,
+          numResults: numResults ?? 8,
+          useAutoprompt: true,
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        return { error: `Search failed (${res.status}): ${text}` };
+      }
+      const data = (await res.json()) as {
+        results: Array<{ title: string; url: string; text: string }>;
+      };
+      return {
+        results: data.results.map((r) => ({
+          title: r.title,
+          url: r.url,
+          text: r.text ? truncate(r.text, 2000) : undefined,
+        })),
+      };
+    }
+    case "gitStatus": {
+      const proc = Bun.spawn(["git", "status", "--short"], {
+        cwd: resolveInsideCwd(".").resolved,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [stdout, stderr] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) throw new Error(`git status failed: ${stderr.trim()}`);
+      return { status: stdout.trim() || "No changes" };
+    }
+    case "gitDiff": {
+      const proc = Bun.spawn(["git", "diff", "--no-color"], {
+        cwd: resolveInsideCwd(".").resolved,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [stdout, stderr] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) throw new Error(`git diff failed: ${stderr.trim()}`);
+      return { diff: stdout.trim() || "No unstaged changes" };
+    }
+    case "gitLog": {
+      const { maxCount } = toolInputSchemas.gitLog.parse(input);
+      const proc = Bun.spawn(["git", "log", `--max-count=${maxCount ?? 10}`, "--oneline", "--no-color"], {
+        cwd: resolveInsideCwd(".").resolved,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [stdout, stderr] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) throw new Error(`git log failed: ${stderr.trim()}`);
+      return { log: stdout.trim() || "No commits" };
+    }
+    case "gitCommit": {
+      const { message } = toolInputSchemas.gitCommit.parse(input);
+      const addProc = Bun.spawn(["git", "add", "."], {
+        cwd: resolveInsideCwd(".").resolved,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      await addProc.exited;
+      const proc = Bun.spawn(["git", "commit", "-m", message], {
+        cwd: resolveInsideCwd(".").resolved,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [stdout, stderr] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) throw new Error(`git commit failed: ${stderr.trim()}`);
+      return { success: true, output: stdout.trim() };
+    }
+    case "gitBranch": {
+      const { name } = toolInputSchemas.gitBranch.parse(input);
+      if (name) {
+        const proc = Bun.spawn(["git", "checkout", "-b", name], {
+          cwd: resolveInsideCwd(".").resolved,
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        const [stdout, stderr] = await Promise.all([
+          new Response(proc.stdout).text(),
+          new Response(proc.stderr).text(),
+        ]);
+        const exitCode = await proc.exited;
+        if (exitCode !== 0) throw new Error(`git branch creation failed: ${stderr.trim()}`);
+        return { success: true, branch: name, output: stdout.trim() };
+      }
+      const proc = Bun.spawn(["git", "branch", "--no-color"], {
+        cwd: resolveInsideCwd(".").resolved,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const [stdout, stderr] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) throw new Error(`git branch failed: ${stderr.trim()}`);
+      return { branches: stdout.trim() };
+    }
+    case "browse": {
+      const browseInput = toolInputSchemas.browse.parse(input);
+      return await executeBrowse(browseInput);
+    }
+    case "gitPush": {
+      const { remote, branch } = toolInputSchemas.gitPush.parse(input);
+      const args = ["git", "push", remote ?? "origin"];
+      if (branch) args.push(branch);
+      const proc = Bun.spawn(args, {
+        cwd: resolveInsideCwd(".").resolved,
+        stdout: "pipe",
+        stderr: "pipe",
+        timeout: 60000,
+      });
+      const [stdout, stderr] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+      ]);
+      const exitCode = await proc.exited;
+      if (exitCode !== 0) throw new Error(`git push failed: ${stderr.trim()}`);
+      return { success: true, output: stdout.trim() };
     }
     default:
       throw new Error(`Unknown tool: ${toolName}`);

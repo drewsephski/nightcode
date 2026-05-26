@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   convertToModelMessages,
   streamText,
+  tool,
   validateUIMessages,
   type InferUITools,
   type LanguageModelUsage,
@@ -13,7 +14,9 @@ import { db } from "@nightcode/database/client";
 import type { Prisma } from "@nightcode/database";
 import { 
   getToolContracts, 
+  mcpToolDefSchema,
   modeSchema, 
+  type McpToolDef,
   type ModeType, 
   type ToolContracts
 } from "@nightcode/shared";
@@ -44,6 +47,7 @@ const submitSchema = z.object({
     .min(1),
   mode: modeSchema,
   model: z.string().refine(isSupportedChatModel, "Unsupported model"),
+  mcpTools: z.array(mcpToolDefSchema).optional(),
 });
 
 const submitValidator = zValidator("json", submitSchema, (result, c) => {
@@ -70,7 +74,7 @@ const app = new Hono<AuthenticatedEnv>()
     submitValidator,
     async (c) => {
       const userId = c.get("userId");
-      const { id, messages, mode, model } = c.req.valid("json");
+      const { id, messages, mode, model, mcpTools } = c.req.valid("json");
 
       const session = await db.session.findUnique({
         where: { id, userId },
@@ -81,8 +85,21 @@ const app = new Hono<AuthenticatedEnv>()
       }
 
       const startTime = Date.now();
-      const tools = getToolContracts(mode);
+      const builtInTools = getToolContracts(mode);
       const resolvedModel = resolveChatModel(model);
+
+      const mcpToolContracts: Record<string, ReturnType<typeof tool>> = {};
+      if (mcpTools) {
+        for (const def of mcpTools) {
+          mcpToolContracts[def.name] = tool({
+            description: def.description,
+            inputSchema: z.record(z.unknown()),
+          });
+        }
+      }
+
+      const allTools = { ...builtInTools, ...mcpToolContracts } as Record<string, unknown>;
+
       const previousMessages = Array.isArray(session.messages)
         ? (session.messages as unknown as NightcodeUIMessage[])
         : [];
@@ -103,25 +120,25 @@ const app = new Hono<AuthenticatedEnv>()
         }
       }
 
-      const nextMessages = await validateUIMessages<NightcodeUIMessage>({
+      const nextMessages = await validateUIMessages({
         messages: mergedMessages,
-        tools,
+        tools: allTools,
       });
-      const modelMessages = await convertToModelMessages(nextMessages, { tools });
+      const modelMessages = await convertToModelMessages(nextMessages, { tools: allTools });
       let completedUsage: LanguageModelUsage | null = null;
 
       const result = streamText({
         model: resolvedModel.model,
-        system: buildSystemPrompt({ mode }),
+        system: buildSystemPrompt({ mode, mcpTools }),
         messages: modelMessages,
-        tools,
+        tools: allTools,
         providerOptions: resolvedModel.providerOptions,
         onFinish(event) {
           completedUsage = event.totalUsage;
         },
       });
 
-      return result.toUIMessageStreamResponse<NightcodeUIMessage>({
+      return result.toUIMessageStreamResponse({
         originalMessages: nextMessages,
         messageMetadata({ part }) {
           if (part.type === "start") {
