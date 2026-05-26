@@ -3,7 +3,7 @@ export type ModelPricing = {
   outputUsdPerMillionTokens: number;
 };
 
-export type SupportedProvider = "anthropic" | "openai";
+export type SupportedProvider = "anthropic" | "openai" | "openrouter";
 
 type SupportedChatModelDefinition = {
   id: string;
@@ -60,6 +60,62 @@ export const SUPPORTED_CHAT_MODELS = [
       outputUsdPerMillionTokens: 1.25,
     },
   },
+  {
+    id: "anthropic/claude-sonnet-4-6",
+    provider: "openrouter",
+    pricing: {
+      inputUsdPerMillionTokens: 3,
+      outputUsdPerMillionTokens: 15,
+    },
+  },
+  {
+    id: "anthropic/claude-haiku-4-5",
+    provider: "openrouter",
+    pricing: {
+      inputUsdPerMillionTokens: 1,
+      outputUsdPerMillionTokens: 5,
+    },
+  },
+  {
+    id: "anthropic/claude-opus-4-6",
+    provider: "openrouter",
+    pricing: {
+      inputUsdPerMillionTokens: 5,
+      outputUsdPerMillionTokens: 25,
+    },
+  },
+  {
+    id: "openai/gpt-5.4",
+    provider: "openrouter",
+    pricing: {
+      inputUsdPerMillionTokens: 2.5,
+      outputUsdPerMillionTokens: 15,
+    },
+  },
+  {
+    id: "openai/gpt-5.4-mini",
+    provider: "openrouter",
+    pricing: {
+      inputUsdPerMillionTokens: 0.75,
+      outputUsdPerMillionTokens: 4.5,
+    },
+  },
+  {
+    id: "openai/gpt-5.4-nano",
+    provider: "openrouter",
+    pricing: {
+      inputUsdPerMillionTokens: 0.2,
+      outputUsdPerMillionTokens: 1.25,
+    },
+  },
+  {
+    id: "google/gemini-2.5-flash-lite",
+    provider: "openrouter",
+    pricing: {
+      inputUsdPerMillionTokens: 0.1,
+      outputUsdPerMillionTokens: 0.4,
+    },
+  },
 ] as const satisfies readonly SupportedChatModelDefinition[];
 
 export type SupportedChatModel = (typeof SUPPORTED_CHAT_MODELS)[number];
@@ -69,4 +125,4 @@ export function findSupportedChatModel(modelId: string) {
   return SUPPORTED_CHAT_MODELS.find((model) => model.id === modelId);
 }
 
-export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "claude-opus-4-6";
+export const DEFAULT_CHAT_MODEL_ID: SupportedChatModelId = "google/gemini-2.5-flash-lite";

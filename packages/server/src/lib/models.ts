@@ -1,5 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import {
   findSupportedChatModel,
   type SupportedChatModel,
@@ -11,7 +12,12 @@ import type { LanguageModel } from "ai";
 
 type AnthropicModelId = Extract<SupportedChatModel, { provider: "anthropic" }>["id"];
 type OpenAIModelId = Extract<SupportedChatModel, { provider: "openai" }>["id"];
+type OpenRouterModelId = Extract<SupportedChatModel, { provider: "openrouter" }>["id"];
 type GeminiModelId = Extract<SupportedChatModel, { provider: "google" }>["id"];
+
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
 
 export type ResolvedModel = {
   model: LanguageModel;
@@ -71,6 +77,14 @@ function resolveOpenAIModel(modelId: OpenAIModelId): ResolvedModel {
   };
 };
 
+function resolveOpenRouterModel(modelId: OpenRouterModelId): ResolvedModel {
+  return {
+    model: openrouter.chat(modelId),
+    provider: "openrouter",
+    modelId,
+  };
+};
+
 function resolveSupportedChatModel(model: SupportedChatModel): ResolvedModel {
   const provider = model.provider;
 
@@ -79,6 +93,8 @@ function resolveSupportedChatModel(model: SupportedChatModel): ResolvedModel {
       return resolveAnthropicModel(model.id);
     case "openai":
       return resolveOpenAIModel(model.id);
+    case "openrouter":
+      return resolveOpenRouterModel(model.id);
     default:
       return assertUnsupportedProvider(provider);
   }
